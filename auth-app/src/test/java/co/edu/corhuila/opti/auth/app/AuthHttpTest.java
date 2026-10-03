@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -145,10 +146,21 @@ class AuthHttpTest extends ContractChecks {
     @Test
     void onlyAdministratorsManageUsers() throws Exception {
         for (String role : List.of("SELLER", "OPTOMETRIST", "SERVICE")) {
+            as(post(collectionPath() + "/" + UUID.randomUUID() + "/deactivate"), role).andExpect(status().isForbidden());
+            as(put(collectionPath() + "/" + UUID.randomUUID() + "/sales-goal").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"salesGoalCents\":1000}"), role).andExpect(status().isForbidden());
+        }
+        for (String role : List.of("SELLER", "OPTOMETRIST")) {
             as(get(collectionPath()), role).andExpect(status().isForbidden());
             as(get(collectionPath() + "/" + UUID.randomUUID()), role).andExpect(status().isForbidden());
-            as(post(collectionPath() + "/" + UUID.randomUUID() + "/deactivate"), role).andExpect(status().isForbidden());
         }
+    }
+
+    /** The worker reads the user list to check sales goals; it never manages users. */
+    @Test
+    void theServiceRoleOnlyReadsUsers() throws Exception {
+        as(get(collectionPath() + "?role=SELLER"), "SERVICE").andExpect(status().isOk());
+        as(get(collectionPath() + "/" + UUID.randomUUID()), "SERVICE").andExpect(status().isNotFound());
     }
 
     @Test
@@ -209,9 +221,9 @@ class AuthHttpTest extends ContractChecks {
                 .andExpect(jsonPath("$.expiresIn").value(30 * 86400))
                 .andReturn().getResponse().getContentAsString();
 
-        // the service token is a real, verifiable token carrying the SERVICE role
+        // the service token is a real, verifiable token carrying the SERVICE role, which may read users
         mvc.perform(get(collectionPath()).header("Authorization", "Bearer " + accessToken(body)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
         as(post("/api/v1/auth/service-tokens").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Bad Name!\",\"ttlDays\":91}"), "ADMIN")
                 .andExpect(status().isBadRequest())

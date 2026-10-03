@@ -154,6 +154,13 @@ public class AuthService implements AuthUseCases {
     }
 
     @Override
+    public User setSalesGoal(UUID id, Long salesGoalCents) {
+        User updated = get(id).withSalesGoal(salesGoalCents, clock.instant());
+        users.update(updated);
+        return updated;
+    }
+
+    @Override
     public IssuedToken issueServiceToken(String name, Integer ttlDays) {
         Violations v = new Violations();
         String subject = v.check(() -> Validation.matching(name, "name", SERVICE_NAME,
