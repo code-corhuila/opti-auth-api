@@ -24,8 +24,8 @@ import co.edu.corhuila.opti.auth.domain.model.User;
 public class JdbcUserRepository implements UserRepository {
 
     private static final String COLUMNS = """
-            id, username, full_name, password_hash, role, active, failed_attempts, locked_until, sales_goal_cents,
-            created_at, updated_at""";
+            id, username, full_name, email, password_hash, role, active, failed_attempts, locked_until,
+            sales_goal_cents, created_at, updated_at""";
 
     private final JdbcClient jdbc;
 
@@ -36,13 +36,13 @@ public class JdbcUserRepository implements UserRepository {
     @Override
     public void insert(User u) {
         try {
-            jdbc.sql("INSERT INTO app_user (" + COLUMNS + ") VALUES (:id, :username, :fullName, :hash, :role,"
-                            + " :active, :failed, :lockedUntil, :salesGoal, :createdAt, :updatedAt)")
+            jdbc.sql("INSERT INTO app_user (" + COLUMNS + ") VALUES (:id, :username, :fullName, :email, :hash,"
+                            + " :role, :active, :failed, :lockedUntil, :salesGoal, :createdAt, :updatedAt)")
                     .param("id", u.id()).param("username", u.username()).param("fullName", u.fullName())
-                    .param("hash", u.passwordHash()).param("role", u.role().name()).param("active", u.active())
-                    .param("failed", u.failedAttempts()).param("lockedUntil", Sql.ts(u.lockedUntil()))
-                    .param("salesGoal", u.salesGoalCents()).param("createdAt", Sql.ts(u.createdAt()))
-                    .param("updatedAt", Sql.ts(u.updatedAt()))
+                    .param("email", u.email()).param("hash", u.passwordHash()).param("role", u.role().name())
+                    .param("active", u.active()).param("failed", u.failedAttempts())
+                    .param("lockedUntil", Sql.ts(u.lockedUntil())).param("salesGoal", u.salesGoalCents())
+                    .param("createdAt", Sql.ts(u.createdAt())).param("updatedAt", Sql.ts(u.updatedAt()))
                     .update();
         } catch (DuplicateKeyException e) {
             throw DomainException.rule("the username is already taken");
@@ -109,8 +109,8 @@ public class JdbcUserRepository implements UserRepository {
     private static User map(ResultSet rs, int row) throws SQLException {
         var locked = rs.getObject("locked_until", java.time.OffsetDateTime.class);
         return User.rehydrate(rs.getObject("id", UUID.class), rs.getString("username"), rs.getString("full_name"),
-                rs.getString("password_hash"), Role.valueOf(rs.getString("role")), rs.getBoolean("active"),
-                rs.getInt("failed_attempts"), locked == null ? null : locked.toInstant(),
+                rs.getString("email"), rs.getString("password_hash"), Role.valueOf(rs.getString("role")),
+                rs.getBoolean("active"), rs.getInt("failed_attempts"), locked == null ? null : locked.toInstant(),
                 Sql.longOrNull(rs, "sales_goal_cents"), Sql.instant(rs, "created_at"), Sql.instant(rs, "updated_at"));
     }
 }
