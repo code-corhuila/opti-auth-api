@@ -15,6 +15,8 @@ public final class User {
     public static final Duration LOCK_TIME = Duration.ofMinutes(15);
 
     private static final Pattern USERNAME = Pattern.compile("^[a-z0-9._-]{3,40}$");
+    /** Letters (including accents and Ñ) and spaces only: no digits, no punctuation. */
+    private static final Pattern FULL_NAME = Pattern.compile("^[\\p{L} ]{2,120}$");
 
     private static final long MAX_GOAL_CENTS = 1_000_000_000_000L;
 
@@ -58,7 +60,8 @@ public final class User {
     public static Checked check(RegisterData data) {
         Violations v = new Violations();
         String username = v.check(() -> normalizedUsername(data.username()));
-        String fullName = v.check(() -> Validation.text(data.fullName(), "fullName", 2, 120));
+        String fullName = v.check(() -> Validation.matching(data.fullName(), "fullName", FULL_NAME,
+                "must have 2 to 120 letters, no numbers or special characters"));
         String password = v.check(() -> PasswordPolicy.validate(data.password(), username, "password"));
         Role role = v.check(() -> Validation.required(data.role(), "role"));
         v.throwIfAny();
