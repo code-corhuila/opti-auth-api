@@ -23,6 +23,7 @@ public final class User {
     private final UUID id;
     private final String username;
     private final String fullName;
+    private final String email;
     private final String passwordHash;
     private final Role role;
     private final boolean active;
@@ -32,12 +33,13 @@ public final class User {
     private final Instant createdAt;
     private final Instant updatedAt;
 
-    private User(UUID id, String username, String fullName, String passwordHash, Role role, boolean active,
-                 int failedAttempts, Instant lockedUntil, Long salesGoalCents, Instant createdAt,
+    private User(UUID id, String username, String fullName, String email, String passwordHash, Role role,
+                 boolean active, int failedAttempts, Instant lockedUntil, Long salesGoalCents, Instant createdAt,
                  Instant updatedAt) {
         this.id = id;
         this.username = username;
         this.fullName = fullName;
+        this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
         this.active = active;
@@ -48,12 +50,20 @@ public final class User {
         this.updatedAt = updatedAt;
     }
 
-    /** Raw input to register a user, before validation. {@code password} is clear text and is never stored. */
-    public record RegisterData(String username, String fullName, String password, Role role) {
+    /**
+     * Raw input to register a user, before validation. {@code password} is clear text and is never stored.
+     * {@code email} is optional (nullable) while not every user has one yet.
+     */
+    public record RegisterData(String username, String fullName, String email, String password, Role role) {
+
+        /** Kept for existing callers that do not set an email yet. */
+        public RegisterData(String username, String fullName, String password, Role role) {
+            this(username, fullName, null, password, role);
+        }
     }
 
     /** What passed validation: the password is checked, not kept. */
-    public record Checked(String username, String fullName, String password, Role role) {
+    public record Checked(String username, String fullName, String email, String password, Role role) {
     }
 
     /** Validates every field at once so the client gets all the problems, not one per attempt. */
@@ -62,21 +72,22 @@ public final class User {
         String username = v.check(() -> normalizedUsername(data.username()));
         String fullName = v.check(() -> Validation.matching(data.fullName(), "fullName", FULL_NAME,
                 "must have 2 to 120 letters, no numbers or special characters"));
+        String email = v.check(() -> Validation.optionalEmail(data.email(), "email"));
         String password = v.check(() -> PasswordPolicy.validate(data.password(), username, "password"));
         Role role = v.check(() -> Validation.required(data.role(), "role"));
         v.throwIfAny();
-        return new Checked(username, fullName, password, role);
+        return new Checked(username, fullName, email, password, role);
     }
 
     public static User register(UUID id, Checked input, String passwordHash, Instant now) {
-        return new User(id, input.username(), input.fullName(), passwordHash, input.role(), true, 0, null, null,
-                now, now);
+        return new User(id, input.username(), input.fullName(), input.email(), passwordHash, input.role(), true, 0,
+                null, null, now, now);
     }
 
-    public static User rehydrate(UUID id, String username, String fullName, String passwordHash, Role role,
-                                 boolean active, int failedAttempts, Instant lockedUntil, Long salesGoalCents,
-                                 Instant createdAt, Instant updatedAt) {
-        return new User(id, username, fullName, passwordHash, role, active, failedAttempts, lockedUntil,
+    public static User rehydrate(UUID id, String username, String fullName, String email, String passwordHash,
+                                 Role role, boolean active, int failedAttempts, Instant lockedUntil,
+                                 Long salesGoalCents, Instant createdAt, Instant updatedAt) {
+        return new User(id, username, fullName, email, passwordHash, role, active, failedAttempts, lockedUntil,
                 salesGoalCents, createdAt, updatedAt);
     }
 
@@ -95,8 +106,8 @@ public final class User {
         int attempts = failedAttempts + 1;
         Instant lock = attempts >= MAX_FAILED_ATTEMPTS ? now.plus(LOCK_TIME) : lockedUntil;
         int stored = attempts >= MAX_FAILED_ATTEMPTS ? 0 : attempts;
-        return new User(id, username, fullName, passwordHash, role, active, stored, lock, salesGoalCents, createdAt,
-                now);
+        return new User(id, username, fullName, email, passwordHash, role, active, stored, lock, salesGoalCents,
+                createdAt, now);
     }
 
     public boolean hasSignInHistory() {
@@ -105,20 +116,23 @@ public final class User {
 
     /** A good sign-in clears the failures and any lock that already expired. */
     public User signedIn(Instant now) {
-        return new User(id, username, fullName, passwordHash, role, active, 0, null, salesGoalCents, createdAt, now);
+        return new User(id, username, fullName, email, passwordHash, role, active, 0, null, salesGoalCents,
+                createdAt, now);
     }
 
     public User withPasswordHash(String newHash, Instant now) {
-        return new User(id, username, fullName, newHash, role, active, 0, null, salesGoalCents, createdAt, now);
+        return new User(id, username, fullName, email, newHash, role, active, 0, null, salesGoalCents, createdAt,
+                now);
     }
 
     public User deactivate(Instant now) {
-        return new User(id, username, fullName, passwordHash, role, false, failedAttempts, lockedUntil,
+        return new User(id, username, fullName, email, passwordHash, role, false, failedAttempts, lockedUntil,
                 salesGoalCents, createdAt, now);
     }
 
     public User activate(Instant now) {
-        return new User(id, username, fullName, passwordHash, role, true, 0, null, salesGoalCents, createdAt, now);
+        return new User(id, username, fullName, email, passwordHash, role, true, 0, null, salesGoalCents, createdAt,
+                now);
     }
 
     /** Only ADMIN sets this (a target for the sales reports to compare against); null clears it. */
@@ -126,7 +140,7 @@ public final class User {
         if (newSalesGoalCents != null && (newSalesGoalCents < 0 || newSalesGoalCents > MAX_GOAL_CENTS)) {
             throw DomainException.validation("salesGoalCents", "must be between 0 and " + MAX_GOAL_CENTS + " cents");
         }
-        return new User(id, username, fullName, passwordHash, role, active, failedAttempts, lockedUntil,
+        return new User(id, username, fullName, email, passwordHash, role, active, failedAttempts, lockedUntil,
                 newSalesGoalCents, createdAt, now);
     }
 
@@ -140,6 +154,10 @@ public final class User {
 
     public String fullName() {
         return fullName;
+    }
+
+    public String email() {
+        return email;
     }
 
     public String passwordHash() {
