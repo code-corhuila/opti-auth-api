@@ -106,7 +106,7 @@ public final class InMemoryAuth {
     /** Convenience: a user stored with a known password, created at a given instant. */
     public static User existing(UUID id, String username, String password, co.edu.corhuila.opti.auth.domain.model.Role role,
                                 Instant now) {
-        return User.rehydrate(id, username, "Demo " + username, "hashed:" + password, role, true, 0, null, null,
-                now, now);
+        return User.rehydrate(id, username, "Demo " + username, null, "hashed:" + password, role, true, 0, null,
+                null, now, now);
     }
 }
