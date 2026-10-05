@@ -100,9 +100,10 @@ class JdbcUserRepositoryIntegrationTest {
 
     @Test
     void searchFiltersByRoleStateAndTextAndEscapesWildcards() {
+        // tag only goes in the username (letters-only fullName can't carry it): search matches either field.
         String tag = UUID.randomUUID().toString().substring(0, 8);
-        auth.register(new User.RegisterData("adm." + tag, "Ana " + tag, PASSWORD, Role.ADMIN), key());
-        User seller = auth.register(new User.RegisterData("sel." + tag, "Sara " + tag, PASSWORD, Role.SELLER), key()).value();
+        auth.register(new User.RegisterData("adm." + tag, "Ana Admin", PASSWORD, Role.ADMIN), key());
+        User seller = auth.register(new User.RegisterData("sel." + tag, "Sara Seller", PASSWORD, Role.SELLER), key()).value();
         auth.setActive(seller.id(), false, UUID.randomUUID());
 
         assertThat(auth.search(new UserFilter(tag, Role.ADMIN, null), PageQuery.first(10)).total()).isEqualTo(1);
