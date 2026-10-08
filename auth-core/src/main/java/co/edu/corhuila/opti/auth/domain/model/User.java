@@ -16,6 +16,8 @@ public final class User {
 
     private static final Pattern USERNAME = Pattern.compile("^[a-z0-9._-]{3,40}$");
 
+    private static final long MAX_GOAL_CENTS = 1_000_000_000_000L;
+
     private final UUID id;
     private final String username;
     private final String fullName;
@@ -24,11 +26,13 @@ public final class User {
     private final boolean active;
     private final int failedAttempts;
     private final Instant lockedUntil;
+    private final Long salesGoalCents;
     private final Instant createdAt;
     private final Instant updatedAt;
 
     private User(UUID id, String username, String fullName, String passwordHash, Role role, boolean active,
-                 int failedAttempts, Instant lockedUntil, Instant createdAt, Instant updatedAt) {
+                 int failedAttempts, Instant lockedUntil, Long salesGoalCents, Instant createdAt,
+                 Instant updatedAt) {
         this.id = id;
         this.username = username;
         this.fullName = fullName;
@@ -37,6 +41,7 @@ public final class User {
         this.active = active;
         this.failedAttempts = failedAttempts;
         this.lockedUntil = lockedUntil;
+        this.salesGoalCents = salesGoalCents;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -61,14 +66,15 @@ public final class User {
     }
 
     public static User register(UUID id, Checked input, String passwordHash, Instant now) {
-        return new User(id, input.username(), input.fullName(), passwordHash, input.role(), true, 0, null, now, now);
+        return new User(id, input.username(), input.fullName(), passwordHash, input.role(), true, 0, null, null,
+                now, now);
     }
 
     public static User rehydrate(UUID id, String username, String fullName, String passwordHash, Role role,
-                                 boolean active, int failedAttempts, Instant lockedUntil, Instant createdAt,
-                                 Instant updatedAt) {
-        return new User(id, username, fullName, passwordHash, role, active, failedAttempts, lockedUntil, createdAt,
-                updatedAt);
+                                 boolean active, int failedAttempts, Instant lockedUntil, Long salesGoalCents,
+                                 Instant createdAt, Instant updatedAt) {
+        return new User(id, username, fullName, passwordHash, role, active, failedAttempts, lockedUntil,
+                salesGoalCents, createdAt, updatedAt);
     }
 
     /** The username as it is stored and compared: trimmed and lower case. */
@@ -86,7 +92,8 @@ public final class User {
         int attempts = failedAttempts + 1;
         Instant lock = attempts >= MAX_FAILED_ATTEMPTS ? now.plus(LOCK_TIME) : lockedUntil;
         int stored = attempts >= MAX_FAILED_ATTEMPTS ? 0 : attempts;
-        return new User(id, username, fullName, passwordHash, role, active, stored, lock, createdAt, now);
+        return new User(id, username, fullName, passwordHash, role, active, stored, lock, salesGoalCents, createdAt,
+                now);
     }
 
     public boolean hasSignInHistory() {
@@ -95,19 +102,29 @@ public final class User {
 
     /** A good sign-in clears the failures and any lock that already expired. */
     public User signedIn(Instant now) {
-        return new User(id, username, fullName, passwordHash, role, active, 0, null, createdAt, now);
+        return new User(id, username, fullName, passwordHash, role, active, 0, null, salesGoalCents, createdAt, now);
     }
 
     public User withPasswordHash(String newHash, Instant now) {
-        return new User(id, username, fullName, newHash, role, active, 0, null, createdAt, now);
+        return new User(id, username, fullName, newHash, role, active, 0, null, salesGoalCents, createdAt, now);
     }
 
     public User deactivate(Instant now) {
-        return new User(id, username, fullName, passwordHash, role, false, failedAttempts, lockedUntil, createdAt, now);
+        return new User(id, username, fullName, passwordHash, role, false, failedAttempts, lockedUntil,
+                salesGoalCents, createdAt, now);
     }
 
     public User activate(Instant now) {
-        return new User(id, username, fullName, passwordHash, role, true, 0, null, createdAt, now);
+        return new User(id, username, fullName, passwordHash, role, true, 0, null, salesGoalCents, createdAt, now);
+    }
+
+    /** Only ADMIN sets this (a target for the sales reports to compare against); null clears it. */
+    public User withSalesGoal(Long newSalesGoalCents, Instant now) {
+        if (newSalesGoalCents != null && (newSalesGoalCents < 0 || newSalesGoalCents > MAX_GOAL_CENTS)) {
+            throw DomainException.validation("salesGoalCents", "must be between 0 and " + MAX_GOAL_CENTS + " cents");
+        }
+        return new User(id, username, fullName, passwordHash, role, active, failedAttempts, lockedUntil,
+                newSalesGoalCents, createdAt, now);
     }
 
     public UUID id() {
@@ -140,6 +157,10 @@ public final class User {
 
     public Instant lockedUntil() {
         return lockedUntil;
+    }
+
+    public Long salesGoalCents() {
+        return salesGoalCents;
     }
 
     public Instant createdAt() {

@@ -217,6 +217,29 @@ class AuthServiceTest {
         assertThatThrownBy(() -> auth.service().me(UUID.randomUUID())).isInstanceOf(DomainException.class);
     }
 
+    // ---- sales goal -------------------------------------------------------------------------
+
+    @Test
+    void settingTheSalesGoalPersistsItAndClearingItSetsItBackToNull() {
+        User seller = auth.service().register(Fixtures.user("sofia.mora"), KEY).value();
+
+        User withGoal = auth.service().setSalesGoal(seller.id(), 500_000_00L);
+        assertThat(withGoal.salesGoalCents()).isEqualTo(500_000_00L);
+        assertThat(auth.service().get(seller.id()).salesGoalCents()).isEqualTo(500_000_00L);
+
+        User cleared = auth.service().setSalesGoal(seller.id(), null);
+        assertThat(cleared.salesGoalCents()).isNull();
+    }
+
+    @Test
+    void aNegativeSalesGoalIsRejected() {
+        User seller = auth.service().register(Fixtures.user("sofia.mora"), KEY).value();
+
+        assertThatThrownBy(() -> auth.service().setSalesGoal(seller.id(), -1L))
+                .isInstanceOfSatisfying(DomainException.class, e ->
+                        assertThat(e.fields()).extracting(FieldError::field).containsExactly("salesGoalCents"));
+    }
+
     // ---- service tokens -------------------------------------------------------------------
 
     @Test

@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import co.edu.corhuila.opti.auth.adapter.in.http.AuthDtos.RegisterUserRequest;
+import co.edu.corhuila.opti.auth.adapter.in.http.AuthDtos.SalesGoalRequest;
 import co.edu.corhuila.opti.auth.adapter.in.http.AuthDtos.UserResponse;
 import co.edu.corhuila.opti.auth.application.port.in.AuthUseCases;
 import co.edu.corhuila.opti.auth.application.port.in.AuthUseCases.UserFilter;
@@ -40,11 +42,12 @@ class UserController {
         return Responses.created(result, result.value().id(), USERS);
     }
 
+    /** Also open to a SERVICE caller: the worker lists sellers (role=SELLER) to check their sales goal. */
     @GetMapping
     PageResponse<UserResponse> search(HttpServletRequest http, @RequestParam(required = false) String q,
             @RequestParam(required = false) String role, @RequestParam(required = false) String active,
             @RequestParam(required = false) String page, @RequestParam(required = false) String limit) {
-        RequestRules.requireRole(http, Roles.ADMIN);
+        RequestRules.requireRole(http, Roles.ADMIN, Roles.SERVICE);
         RequestRules.onlyParams(http, "q", "role", "active", "page", "limit");
         var filter = new UserFilter(q, parseRole(role), parseBoolean(active));
         return PageResponse.of(useCases.search(filter, RequestRules.page(page, limit)).map(UserResponse::from));
@@ -52,8 +55,14 @@ class UserController {
 
     @GetMapping("/{id}")
     UserResponse get(HttpServletRequest http, @PathVariable String id) {
-        RequestRules.requireRole(http, Roles.ADMIN);
+        RequestRules.requireRole(http, Roles.ADMIN, Roles.SERVICE);
         return UserResponse.from(useCases.get(RequestRules.uuid(id, "id")));
+    }
+
+    @PutMapping("/{id}/sales-goal")
+    UserResponse setSalesGoal(HttpServletRequest http, @PathVariable String id, @RequestBody SalesGoalRequest body) {
+        RequestRules.requireRole(http, Roles.ADMIN);
+        return UserResponse.from(useCases.setSalesGoal(RequestRules.uuid(id, "id"), body.salesGoalCents()));
     }
 
     @PostMapping("/{id}/deactivate")
