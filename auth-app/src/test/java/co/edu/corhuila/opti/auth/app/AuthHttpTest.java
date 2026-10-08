@@ -221,9 +221,9 @@ class AuthHttpTest extends ContractChecks {
                 .andExpect(jsonPath("$.expiresIn").value(30 * 86400))
                 .andReturn().getResponse().getContentAsString();
 
-        // the service token is a real, verifiable token carrying the SERVICE role
+        // the service token is a real, verifiable token carrying the SERVICE role, which may read users
         mvc.perform(get(collectionPath()).header("Authorization", "Bearer " + accessToken(body)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
         as(post("/api/v1/auth/service-tokens").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Bad Name!\",\"ttlDays\":91}"), "ADMIN")
                 .andExpect(status().isBadRequest())
