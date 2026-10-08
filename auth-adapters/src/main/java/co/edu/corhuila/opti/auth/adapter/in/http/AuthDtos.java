@@ -34,13 +34,16 @@ final class AuthDtos {
     record ServiceTokenRequest(String name, Integer ttlDays) {
     }
 
-    record UserResponse(UUID id, String username, String fullName, Role role, boolean active, Instant createdAt,
-                        Instant updatedAt) {
+    record UserResponse(UUID id, String username, String fullName, Role role, boolean active, Long salesGoalCents,
+                        Instant createdAt, Instant updatedAt) {
 
         static UserResponse from(User u) {
-            return new UserResponse(u.id(), u.username(), u.fullName(), u.role(), u.active(), u.createdAt(),
-                    u.updatedAt());
+            return new UserResponse(u.id(), u.username(), u.fullName(), u.role(), u.active(), u.salesGoalCents(),
+                    u.createdAt(), u.updatedAt());
         }
+    }
+
+    record SalesGoalRequest(Long salesGoalCents) {
     }
 
     record TokenResponse(String accessToken, String tokenType, long expiresIn) {

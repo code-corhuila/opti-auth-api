@@ -34,4 +34,9 @@ final class Sql {
         int value = rs.getInt(column);
         return rs.wasNull() ? null : value;
     }
+
+    static Long longOrNull(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
 }

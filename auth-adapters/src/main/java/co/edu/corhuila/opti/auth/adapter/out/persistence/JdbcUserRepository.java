@@ -24,8 +24,8 @@ import co.edu.corhuila.opti.auth.domain.model.User;
 public class JdbcUserRepository implements UserRepository {
 
     private static final String COLUMNS = """
-            id, username, full_name, password_hash, role, active, failed_attempts, locked_until, created_at,
-            updated_at""";
+            id, username, full_name, password_hash, role, active, failed_attempts, locked_until, sales_goal_cents,
+            created_at, updated_at""";
 
     private final JdbcClient jdbc;
 
@@ -37,11 +37,12 @@ public class JdbcUserRepository implements UserRepository {
     public void insert(User u) {
         try {
             jdbc.sql("INSERT INTO app_user (" + COLUMNS + ") VALUES (:id, :username, :fullName, :hash, :role,"
-                            + " :active, :failed, :lockedUntil, :createdAt, :updatedAt)")
+                            + " :active, :failed, :lockedUntil, :salesGoal, :createdAt, :updatedAt)")
                     .param("id", u.id()).param("username", u.username()).param("fullName", u.fullName())
                     .param("hash", u.passwordHash()).param("role", u.role().name()).param("active", u.active())
                     .param("failed", u.failedAttempts()).param("lockedUntil", Sql.ts(u.lockedUntil()))
-                    .param("createdAt", Sql.ts(u.createdAt())).param("updatedAt", Sql.ts(u.updatedAt()))
+                    .param("salesGoal", u.salesGoalCents()).param("createdAt", Sql.ts(u.createdAt()))
+                    .param("updatedAt", Sql.ts(u.updatedAt()))
                     .update();
         } catch (DuplicateKeyException e) {
             throw DomainException.rule("the username is already taken");
@@ -96,12 +97,12 @@ public class JdbcUserRepository implements UserRepository {
     public void update(User u) {
         jdbc.sql("""
                 UPDATE app_user SET password_hash = :hash, active = :active, failed_attempts = :failed,
-                       locked_until = :lockedUntil, updated_at = :updatedAt
+                       locked_until = :lockedUntil, sales_goal_cents = :salesGoal, updated_at = :updatedAt
                 WHERE id = :id
                 """)
                 .param("hash", u.passwordHash()).param("active", u.active()).param("failed", u.failedAttempts())
-                .param("lockedUntil", Sql.ts(u.lockedUntil())).param("updatedAt", Sql.ts(u.updatedAt()))
-                .param("id", u.id())
+                .param("lockedUntil", Sql.ts(u.lockedUntil())).param("salesGoal", u.salesGoalCents())
+                .param("updatedAt", Sql.ts(u.updatedAt())).param("id", u.id())
                 .update();
     }
 
@@ -110,6 +111,6 @@ public class JdbcUserRepository implements UserRepository {
         return User.rehydrate(rs.getObject("id", UUID.class), rs.getString("username"), rs.getString("full_name"),
                 rs.getString("password_hash"), Role.valueOf(rs.getString("role")), rs.getBoolean("active"),
                 rs.getInt("failed_attempts"), locked == null ? null : locked.toInstant(),
-                Sql.instant(rs, "created_at"), Sql.instant(rs, "updated_at"));
+                Sql.longOrNull(rs, "sales_goal_cents"), Sql.instant(rs, "created_at"), Sql.instant(rs, "updated_at"));
     }
 }
