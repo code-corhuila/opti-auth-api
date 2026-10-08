@@ -17,19 +17,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import co.edu.corhuila.opti.auth.adapter.in.http.PublicPaths;
 import co.edu.corhuila.opti.auth.adapter.in.http.Rs256Verifier;
 import co.edu.corhuila.opti.auth.adapter.out.persistence.IdempotencyKeys;
+import co.edu.corhuila.opti.auth.adapter.out.persistence.JdbcNotificationRepository;
 import co.edu.corhuila.opti.auth.adapter.out.persistence.JdbcUnitOfWork;
 import co.edu.corhuila.opti.auth.adapter.out.persistence.JdbcUserRepository;
 import co.edu.corhuila.opti.auth.adapter.out.persistence.UuidGenerator;
 import co.edu.corhuila.opti.auth.adapter.out.security.BcryptPasswordHasher;
 import co.edu.corhuila.opti.auth.adapter.out.security.Rs256TokenIssuer;
 import co.edu.corhuila.opti.auth.application.port.in.AuthUseCases;
+import co.edu.corhuila.opti.auth.application.port.in.NotificationUseCases;
 import co.edu.corhuila.opti.auth.application.port.out.IdGenerator;
 import co.edu.corhuila.opti.auth.application.port.out.IdempotencyStore;
+import co.edu.corhuila.opti.auth.application.port.out.NotificationRepository;
 import co.edu.corhuila.opti.auth.application.port.out.PasswordHasher;
 import co.edu.corhuila.opti.auth.application.port.out.TokenIssuer;
 import co.edu.corhuila.opti.auth.application.port.out.UnitOfWork;
 import co.edu.corhuila.opti.auth.application.port.out.UserRepository;
 import co.edu.corhuila.opti.auth.application.usecase.AuthService;
+import co.edu.corhuila.opti.auth.application.usecase.NotificationService;
 
 /**
  * Composition root: the only place that knows every concrete type. The numeric limits (server
@@ -104,5 +108,16 @@ class AuthConfiguration {
                               IdGenerator ids, UnitOfWork unitOfWork, Clock clock,
                               @Value("${auth.jwt.token-ttl-minutes:60}") long tokenTtlMinutes) {
         return new AuthService(users, hasher, tokens, keys, ids, unitOfWork, clock, Duration.ofMinutes(tokenTtlMinutes));
+    }
+
+    @Bean
+    NotificationRepository notificationRepository(JdbcClient jdbc) {
+        return new JdbcNotificationRepository(jdbc);
+    }
+
+    @Bean
+    NotificationUseCases notificationUseCases(NotificationRepository notifications, IdempotencyStore keys,
+                                              IdGenerator ids, UnitOfWork unitOfWork, Clock clock) {
+        return new NotificationService(notifications, keys, ids, unitOfWork, clock);
     }
 }
