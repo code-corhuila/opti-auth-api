@@ -15,11 +15,14 @@ import co.edu.corhuila.opti.auth.adapter.out.persistence.UuidGenerator;
 import co.edu.corhuila.opti.auth.adapter.out.security.BcryptPasswordHasher;
 import co.edu.corhuila.opti.auth.adapter.out.security.Rs256TokenIssuer;
 import co.edu.corhuila.opti.auth.application.port.in.AuthUseCases;
+import co.edu.corhuila.opti.auth.application.port.in.NotificationUseCases;
 import co.edu.corhuila.opti.auth.application.usecase.AuthService;
+import co.edu.corhuila.opti.auth.application.usecase.NotificationService;
 import co.edu.corhuila.opti.auth.testsupport.DirectUnitOfWork;
 import co.edu.corhuila.opti.auth.testsupport.Fixtures;
 import co.edu.corhuila.opti.auth.testsupport.InMemoryAuth;
 import co.edu.corhuila.opti.auth.testsupport.InMemoryIdempotencyStore;
+import co.edu.corhuila.opti.auth.testsupport.InMemoryNotifications;
 import co.edu.corhuila.opti.auth.testsupport.TestClock;
 
 /**
@@ -51,5 +54,12 @@ class HttpTestApplication {
         return new AuthService(new InMemoryAuth.Users(), new BcryptPasswordHasher(),
                 new Rs256TokenIssuer(TestTokens.privateKeyPem(), json, clock), keys, new UuidGenerator(),
                 new DirectUnitOfWork(keys), clock, Duration.ofMinutes(60));
+    }
+
+    @Bean
+    NotificationUseCases notificationUseCases(TestClock clock) {
+        var keys = new InMemoryIdempotencyStore();
+        return new NotificationService(new InMemoryNotifications(), keys, new UuidGenerator(),
+                new DirectUnitOfWork(keys), clock);
     }
 }
