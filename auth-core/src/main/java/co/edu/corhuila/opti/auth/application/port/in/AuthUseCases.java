@@ -26,6 +26,9 @@ public interface AuthUseCases {
     /** Deactivating yourself is refused: the last administrator could lock everyone out. */
     User setActive(UUID id, boolean active, UUID actorId);
 
+    /** A target for the sales reports to compare against; meaningful only for a SELLER. Null clears it. */
+    User setSalesGoal(UUID id, Long salesGoalCents);
+
     /** A long-lived token with the SERVICE role for the worker or the workflow. Shown once, never stored. */
     IssuedToken issueServiceToken(String name, Integer ttlDays);
 
